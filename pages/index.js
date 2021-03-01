@@ -1,65 +1,115 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import Head from 'next/head';
+import { ApolloClient, gql, InMemoryCache } from '@apollo/client';
+import { useState } from 'react';
+import Characters from '../components/Characters';
 
-export default function Home() {
+export default function Home(results) {
+  const initialState = results;
+  const [characters, setCharacters] = useState(initialState.characters);
+  const [search, setSearch] = useState('');
+
   return (
-    <div className={styles.container}>
+    <div className="max-w-2xl mx-auto">
       <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
+        <title>NextJS Apollo Client</title>
       </Head>
 
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
+      <div className="flex flex-col justify-center p-6 border-b mb-4">
+        <h1 className="text-2xl font-semibold text-center">Rick and Morty</h1>
+      </div>
 
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
+      <form
+        className="mb-4"
+        onSubmit={async e => {
+          e.preventDefault();
+          const results = await fetch('/api/searchCharacter', {
+            method: 'POST',
+            body: JSON.stringify(search),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          const { characters, error } = await results.json();
 
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
+          setCharacters(characters);
+        }}
+      >
+        <div className="flex items-center">
+          <input
+            className="px-4 py-2 h-full w-full outline-none"
+            type="text"
+            placeholder="Search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <button
+            className="max-content inline-block px-4 py-2 bg-red-300 text-red-900 border rounded-md mr-4"
+            disabled={search === ''}
+            type="submit"
           >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
+            Search
+          </button>
+          <button
+            className="max-content inline-block px-4 py-2 bg-white text-red-300 border-red-300 border rounded-md mr-4"
+            disabled={search === ''}
+            onClick={async () => {
+              setSearch('');
+              setCharacters(initialState.characters);
+            }}
+            type="button"
           >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
+            Reset
+          </button>
         </div>
-      </main>
+      </form>
+      <Characters characters={characters} />
 
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
-        </a>
+      <footer className="flex flex-col justify-center p-6">
+        <p className="text-center">Powered by Energy Drinks 🧋</p>
       </footer>
     </div>
-  )
+  );
+}
+
+export async function getStaticProps() {
+  const client = new ApolloClient({
+    uri: 'https://rickandmortyapi.com/graphql/',
+    cache: new InMemoryCache(),
+  });
+  const { data } = await client.query({
+    query: gql`
+      query {
+        characters(page: 1) {
+          info {
+            count
+            pages
+          }
+          results {
+            name
+            id
+            location {
+              name
+              id
+            }
+            image
+            origin {
+              name
+              id
+            }
+            episode {
+              id
+              episode
+              air_date
+            }
+          }
+        }
+      }
+    `,
+  });
+
+  return {
+    props: {
+      characters: data.characters.results,
+    },
+  };
 }
